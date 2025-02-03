@@ -3,15 +3,15 @@
 #include <Servo.h>
 
 // 🔹 Wi-Fi 설정
-#define WIFI_SSID "SSID 입력하기"
-#define WIFI_PASSWORD "비밀번호 입력하기"
+#define WIFI_SSID "SSID 입력"
+#define WIFI_PASSWORD "WIFI 비밀번호 입력"
 
 // 🔹 Firebase 설정
-#define API_KEY "Firebase API"
-#define DATABASE_URL "Firebase DB 주소"
+#define API_KEY "Fireabse API Key 입력"
+#define DATABASE_URL "Firebase Database URL 입력"
 
 // 🔹 Firebase 인증 토큰 (필수!)
-#define FIREBASE_AUTH "Firebase Auth"
+#define FIREBASE_AUTH "Firebase Auth Token 입력"
 
 #define SERVO_PIN 2  // GPIO2 (D4 핀)
 
@@ -20,7 +20,13 @@ FirebaseAuth auth;
 FirebaseConfig config;
 Servo myServo;
 
-const char* FIREBASE_PATH = "/switch/직원 ID";
+const char* STATE_PATH = "/switch/사원/state";
+const char* ANGLE_PATH = "/switch/사원/angle";
+const char* TIME_PATH = "/switch/사원원/time";
+
+// 🔹 기본값 설정
+int servoAngle = 36;   // 서보모터 기본 회전 각도
+int servoTime = 100;   // 서보모터 기본 머무는 시간 (ms)
 
 // 🔹 Wi-Fi 연결
 void connectToWiFi() {
@@ -55,6 +61,31 @@ void checkFirebaseConnection() {
     }
 }
 
+// 🔹 Firebase에서 초기 설정값 가져오기
+void fetchInitialValues() {
+    Serial.println("🔹 Firebase에서 초기 값 가져오는 중...");
+
+    // 🔹 angle 값 가져오기
+    if (Firebase.getInt(firebaseData, ANGLE_PATH)) {
+        servoAngle = firebaseData.intData();
+        Serial.print("✅ Firebase angle 값: ");
+        Serial.println(servoAngle);
+    } else {
+        Serial.print("❌ Firebase angle 읽기 실패: ");
+        Serial.println(firebaseData.errorReason());
+    }
+
+    // 🔹 time 값 가져오기
+    if (Firebase.getInt(firebaseData, TIME_PATH)) {
+        servoTime = firebaseData.intData();
+        Serial.print("✅ Firebase time 값: ");
+        Serial.println(servoTime);
+    } else {
+        Serial.print("❌ Firebase time 읽기 실패: ");
+        Serial.println(firebaseData.errorReason());
+    }
+}
+
 void setup() {
     Serial.begin(115200);
 
@@ -74,28 +105,29 @@ void setup() {
     // 🔹 Firebase 연결 테스트
     checkFirebaseConnection();
 
+    // 🔹 Firebase에서 초기 값 가져오기
+    fetchInitialValues();
+
     // 🔹 서보 모터 설정
     myServo.attach(SERVO_PIN);
     Serial.println("모터 연결 완료");
+    myServo.write(0);
+    Serial.println("모터 초기 세팅");
 }
 
 void loop() {
-    String path = String(FIREBASE_PATH);
-    Serial.println("path값");
-    Serial.println(path);
-
     // 🔹 Firebase에서 값 읽기
-    if (Firebase.getBool(firebaseData, path)) {
+    if (Firebase.getBool(firebaseData, STATE_PATH)) {
         bool switchState = firebaseData.boolData();
 
         Serial.print("Firebase 값: ");
         Serial.println(switchState ? "true" : "false");
 
         if (switchState) {
-            myServo.write(180);  
-            delay(1500);
-            Firebase.setBool(firebaseData, path, false);  
+            myServo.write(servoAngle);  
+            delay(servoTime);
             myServo.write(0);  
+            Firebase.setBool(firebaseData, STATE_PATH, false);  
         }
     } else {
         Serial.print("❌ Firebase 읽기 실패: ");
