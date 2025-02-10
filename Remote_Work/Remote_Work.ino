@@ -4,11 +4,8 @@
 #include <Servo.h>
 
 // 🔹 Wi-Fi 설정
-#define WIFI_SSID "SSID 입력"
-#define WIFI_PASSWORD "Password 입력"
-
-// PC의 로컬 IP 주소 (고정 IP로 설정 필요)
-const char* PC_IP = "사용 PC 로컬 IP 입력";
+#define WIFI_SSID "WIFI SSID 입력"
+#define WIFI_PASSWORD "PASSWORD 입력"
 
 // 🔹 Firebase 설정
 #define API_KEY "Firebase API Key 입력"
@@ -24,13 +21,17 @@ FirebaseAuth auth;
 FirebaseConfig config;
 Servo myServo;
 
-const char* STATE_PATH = "/switch/사원/state";
-const char* ANGLE_PATH = "/switch/사원/angle";
-const char* TIME_PATH = "/switch/사원/time";
+const char* STATE_PATH = "/switch/아이디/state";
+const char* ANGLE_PATH = "/switch/아이디/angle";
+const char* TIME_PATH = "/switch/아이디/time";
+const char* PC_ADDRESS_PATH = "/switch/아이디/address";
 
 // 🔹 기본값 설정
 int servoAngle = 45;   // 서보모터 기본 회전 각도
 int servoTime = 500;   // 서보모터 기본 머무는 시간 (ms)
+
+// PC의 로컬 IP 주소 (고정 IP로 설정 필요)
+String PC_IP = "192.168.0.0";
 
 // 🔹 Wi-Fi 연결
 void connectToWiFi() {
@@ -88,6 +89,16 @@ void fetchInitialValues() {
         Serial.print("❌ Firebase time 읽기 실패: ");
         Serial.println(firebaseData.errorReason());
     }
+
+    // 🔹 address (PC IP) 값 가져오기
+    if (Firebase.getString(firebaseData, PC_ADDRESS_PATH)) {
+        PC_IP = firebaseData.stringData();
+        Serial.print("✅ Firebase address 값: ");
+        Serial.println(PC_IP);
+    } else {
+        Serial.print("❌ Firebase address 읽기 실패 (기본값 사용): ");
+        Serial.println(firebaseData.errorReason());
+    }
 }
 
 void setup() {
@@ -130,7 +141,7 @@ void loop() {
         if (switchState) {
             Serial.print("🔍 PC 상태 확인 중... ");
 
-            if (Ping.ping(PC_IP)) {
+            if (Ping.ping(PC_IP.c_str())) {
                 Serial.println("✅ PC가 켜져 있습니다!");
                 Serial.println("스위치 작동 중지");
                 Firebase.setBool(firebaseData, STATE_PATH, false);
